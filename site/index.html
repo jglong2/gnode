@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>gnode — homelab</title>
+  <meta name="description" content="A live map of what's running on my homelab." />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect x='4' y='4' width='24' height='24' rx='6' fill='%2307090d' stroke='%2337e2c4' stroke-width='2'/><circle cx='16' cy='16' r='4' fill='%2337e2c4'/></svg>" />
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <div class="grid-bg" aria-hidden="true"></div>
+
+  <header class="top">
+    <div class="brand">
+      <span class="brand-mark" aria-hidden="true"></span>
+      <span class="brand-name" data-bind="hostname">gnode</span>
+      <span class="brand-sub">/ homelab</span>
+    </div>
+    <div class="top-status">
+      <span class="pulse" aria-hidden="true"></span>
+      <span>cluster online</span>
+      <span class="sep">·</span>
+      <span class="mono" id="clock">--:--:--</span>
+    </div>
+  </header>
+
+  <main>
+    <section class="hero">
+      <div class="hero-copy">
+        <p class="eyebrow mono">// homeserver · k3s · self-hosted</p>
+        <h1>Everything running on <span class="accent" data-bind="hostname">gnode</span>.</h1>
+        <p class="lede" data-bind="tagline"></p>
+        <div class="stats">
+          <div class="stat"><span class="stat-val mono" id="stat-live">0</span><span class="stat-label">live services</span></div>
+          <div class="stat"><span class="stat-val mono" id="stat-planned">0</span><span class="stat-label">in the queue</span></div>
+          <div class="stat"><span class="stat-val mono" id="stat-uptime">0d</span><span class="stat-label">online for</span></div>
+        </div>
+      </div>
+      <div class="topology-wrap">
+        <canvas id="topology" aria-label="Animated map of services connected to the node"></canvas>
+        <div class="topology-caption mono">live topology</div>
+      </div>
+    </section>
+
+    <section class="panel" id="services">
+      <div class="panel-head">
+        <h2>Services</h2>
+        <div class="legend mono">
+          <span><i class="dot live"></i>live</span>
+          <span><i class="dot building"></i>building</span>
+          <span><i class="dot planned"></i>planned</span>
+        </div>
+      </div>
+      <div class="cards" id="cards"></div>
+    </section>
+
+    <section class="split">
+      <div class="panel">
+        <div class="panel-head"><h2>Node</h2><span class="mono muted">spec sheet</span></div>
+        <dl class="spec" id="spec"></dl>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head"><h2>Delivery pipeline</h2><span class="mono muted">how this page got here</span></div>
+        <ol class="pipeline">
+          <li><span class="step mono">01</span><div><b>git push</b><p>Code lives in a GitHub repo.</p></div></li>
+          <li><span class="step mono">02</span><div><b>GitHub Actions</b><p>Builds a container image on every push.</p></div></li>
+          <li><span class="step mono">03</span><div><b>GHCR</b><p>Image is stored in GitHub Container Registry.</p></div></li>
+          <li><span class="step mono">04</span><div><b>Kubernetes</b><p>The cluster pulls the image and runs it.</p></div></li>
+          <li><span class="step mono">05</span><div><b>Cloudflare edge</b><p>Cloudflare → tunnel → Traefik → nginx. Zero open ports.</p></div></li>
+        </ol>
+      </div>
+    </section>
+
+    <section class="panel terminal">
+      <div class="term-bar"><i></i><i></i><i></i><span class="mono">griffin@homeserver:~</span></div>
+      <pre class="mono" id="term"></pre>
+    </section>
+  </main>
+
+  <footer class="foot mono">
+    <span>served from a mini PC on an apartment network</span>
+    <span id="links"></span>
+  </footer>
+
+  <script src="js/config.js"></script>
+  <script src="js/main.js"></script>
+</body>
+</html>

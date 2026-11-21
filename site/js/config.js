@@ -30,6 +30,7 @@ window.GNODE = {
   //             pings it to show a real reachability indicator.
   //   pod:      optional "namespace/name" — shown in the terminal's kubectl output
   //   replicas: optional, defaults to 1
+  //   via:      optional; name of the service that routes traffic to this one (see `traffic`)
   services: [
     {
       name: "gnode.net",
@@ -37,6 +38,7 @@ window.GNODE = {
       status: "live",
       url: "/",
       pod: "website/website",
+      via: "traefik",
       desc: "This page. Static files in an nginx container, built by GitHub Actions and pulled from GHCR.",
       tags: ["nginx", "traefik", "ghcr"],
     },
@@ -72,13 +74,20 @@ window.GNODE = {
       tags: ["github actions", "ghcr"],
     },
     {
-      name: "site #2",
+      name: "griffinlong.com",
       kind: "web",
-      status: "planned",
-      desc: "A second personal site. New hostname on the tunnel, plus an Ingress on Traefik.",
-      tags: ["tbd"],
+      status: "live",
+      url: "https://www.griffinlong.com",
+      pod: "griffinlong/griffinlong",
+      via: "traefik",
+      desc: "My personal site. Moved off DreamHost onto the homeserver and served by nginx, through the same tunnel and Traefik as this page.",
+      tags: ["nginx", "traefik", "ghcr"],
     },
   ],
+
+  // Public traffic path drawn on the topology:
+  // internet → traffic[0] → … → traffic[last] → every service with `via` set to traffic[last].
+  traffic: ["cloudflared", "traefik"],
 
   // Links in the footer
   links: [

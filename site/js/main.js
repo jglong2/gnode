@@ -187,11 +187,26 @@
   addEventListener("resize", resize);
   resize();
 
-  const nodes = cfg.services.map((s, i) => ({
+  // Ring order: traffic chain first, then the services it routes to, then the rest,
+  // so the public path (internet → tunnel → ingress → sites) sits on adjacent nodes.
+  const chain = (cfg.traffic || []).filter((n) => cfg.services.some((s) => s.name === n));
+  const last = chain[chain.length - 1];
+  const routed = cfg.services.filter((s) => last && s.via === last);
+  const ordered = [
+    ...chain.map((n) => cfg.services.find((s) => s.name === n)),
+    ...routed,
+    ...cfg.services.filter((s) => !chain.includes(s.name) && !routed.includes(s)),
+  ];
+  const onPath = new Set([...chain, ...routed.map((s) => s.name)]);
+  const nodes = ordered.map((s, i) => ({
     s,
-    a: (i / cfg.services.length) * Math.PI * 2 - Math.PI / 2,
-    packets: [],
+    a: (i / ordered.length) * Math.PI * 2 - Math.PI / 2,
   }));
+  // traffic edges as [from, to] service names
+  const routes = [
+    ...chain.slice(1).map((n, i) => [chain[i], n]),
+    ...routed.map((s) => [last, s.name]),
+  ];
   const stars = Array.from({ length: 60 }, () => ({ x: Math.random(), y: Math.random(), r: Math.random() * 1.2, p: Math.random() * 6 }));
   const colorFor = (s) => (s._up === false ? "#ff5d6c" : s.status === "live" ? C.accent : s.status === "building" ? C.warn : C.off);
 
@@ -233,20 +248,41 @@
       }
     }
 
-    // internet uplink (top)
+    // positions
+    const pos = {};
+    nodes.forEach((n) => {
+      n.ang = n.a + rot;
+      n.x = cx + Math.cos(n.ang) * R;
+      n.y = cy + Math.sin(n.ang) * R;
+      n.on = n.s.status === "live" && n.s._up !== false;
+      pos[n.s.name] = n;
+    });
+
+    // cluster spokes: core → every node. Nodes on the public path get a quiet
+    // spoke; their packets travel along the traffic route instead.
+    nodes.forEach((n, i) => {
+      const quiet = onPath.has(n.s.name);
+      drawEdge(cx, cy, n.x, n.y, colorFor(n.s), n.on && !quiet, t + i, 1, quiet && n.on ? 0.2 : null);
+    });
+
+    // internet uplink (top) → entry of the traffic chain (or the core if none)
     const ix = cx, iy = Math.max(26, cy - R * 1.32);
-    drawEdge(ix, iy, cx, cy, C.accent2, true, t, 0.6);
+    const entry = pos[chain[0]];
+    drawEdge(ix, iy, entry ? entry.x : cx, entry ? entry.y : cy, C.accent2, true, t, 0.6);
     ctx.fillStyle = C.accent2;
     ctx.beginPath(); ctx.arc(ix, iy, 4, 0, 7); ctx.fill();
     label("internet", ix, iy - 12, C.muted, "center");
 
+    // public traffic route: tunnel → ingress → each site
+    routes.forEach(([a, b], i) => {
+      const p = pos[a], q = pos[b];
+      drawEdge(p.x, p.y, q.x, q.y, C.accent2, p.on && q.on, t + i * 0.3, 0.6);
+    });
+
     // service nodes
-    nodes.forEach((n, i) => {
-      const a = n.a + rot;
-      const x = cx + Math.cos(a) * R, y = cy + Math.sin(a) * R;
+    nodes.forEach((n) => {
+      const { x, y, ang: a, on } = n;
       const col = colorFor(n.s);
-      const on = n.s.status === "live" && n.s._up !== false;
-      drawEdge(cx, cy, x, y, col, on, t + i, 1);
 
       // node glyph
       ctx.save();
@@ -270,7 +306,8 @@
       const lx = Math.cos(a) >= 0 ? "left" : "right";
       const off = Math.cos(a) >= 0 ? 16 : -16;
       label(n.s.name, x + off, y - 2, on ? C.text : C.muted, lx, 12);
-      label(n.s.kind || "", x + off, y + 13, C.muted, lx, 10);
+      const ns = routed.includes(n.s) && n.s.pod ? ` · ns/${n.s.pod.split("/")[0]}` : "";
+      label((n.s.kind || "") + ns, x + off, y + 13, C.muted, lx, 10);
     });
 
     // core node
@@ -289,11 +326,11 @@
     if (!reduced) requestAnimationFrame(frame);
   }
 
-  function drawEdge(x1, y1, x2, y2, col, on, t, speed) {
+  function drawEdge(x1, y1, x2, y2, col, on, t, speed, alpha) {
     ctx.strokeStyle = col;
-    ctx.globalAlpha = on ? 0.35 : 0.15;
+    ctx.globalAlpha = alpha != null ? alpha : on ? 0.35 : 0.15;
     ctx.lineWidth = 1;
-    ctx.setLineDash(on ? [] : [4, 5]);
+    ctx.setLineDash(on || alpha != null ? [] : [4, 5]);
     ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
     ctx.setLineDash([]);
     ctx.globalAlpha = 1;
